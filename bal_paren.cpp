@@ -1,7 +1,7 @@
-/*		 
+/*
  * Sux: Succinct data structures
  *
- * Copyright (C) 2009-2013 Sebastiano Vigna 
+ * Copyright (C) 2009-2013 Sebastiano Vigna
  *
  *  This library is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU Lesser General Public License as published by the Free
@@ -21,7 +21,9 @@
 
 using namespace std;
 
+#ifdef VERBOSE
 #include <cstdio>
+#endif
 #include <cassert>
 #include <cstring>
 #include <vector>
@@ -43,10 +45,12 @@ bal_paren::bal_paren( const uint64_t * const bits, const uint64_t num_bits ) {
 	int first_nonzero_block = -1;
 	for( int block = num_words; block-- != 0; ) {
 		const int l = min( 64ULL, num_bits - block * 64ULL );
+#ifdef VERBOSE
 		if ( block % 100000 == 0 ) {
 			fprintf( stderr, "." );
 			fflush( stderr );
 		}
+#endif
 
 		if ( block != num_words -1 ) {
 			int excess = 0;
@@ -75,15 +79,15 @@ bal_paren::bal_paren( const uint64_t * const bits, const uint64_t num_bits ) {
 							assert( first_nonzero_block < num_words );
 						}
 					}
-				}					
-			}				
+				}
+			}
 		}
 		count[ block ] = count_far_close( bits[ block ], l );
 		if ( count[ block ] != 0 ) first_nonzero_block = block;
 	}
-
+#ifdef VERBOSE
 	fprintf( stderr, "\n" );
-
+#endif
 	for( int i = num_words; i-- != 0; ) assert( count[ i ] == 0 );
 
 	opening_pioneers_bits = new uint64_t[ num_words ]();
@@ -111,8 +115,9 @@ bal_paren::bal_paren( const uint64_t * const bits, const uint64_t num_bits ) {
 
 				if ( c == 0 ) break;
 			}
-
+#ifdef VERBOSE
 			if ( find_close(i) != j ) printf( "find_close(%lld) = %lld != %lld\n", i, find_close(i), j);
+#endif
 			assert(c == 0);
 			assert(find_close(i) == j);
 		}
@@ -148,14 +153,14 @@ uint64_t bal_paren::find_close( const uint64_t pos ) {
 		if ( pos == pioneer ) {
 			return match;
 		}
-		
+
 		int dist = (int)( pos - pioneer );
-		
-		int e = 2 * __builtin_popcountll( ( bits[ word ] >> ( pioneer % 64 ) ) & ( 1ULL << dist ) - 1 ) - dist; 
-		
+
+		int e = 2 * __builtin_popcountll( ( bits[ word ] >> ( pioneer % 64 ) ) & ( 1ULL << dist ) - 1 ) - dist;
+
 		const int matchWord = (int)( match / 64 );
 		const int matchBit = (int)( match % 64 );
-		
+
 		const int numFarClose = matchBit - 2 * __builtin_popcountll( bits[ matchWord ] & ( 1ULL << matchBit ) - 1 );
 		return matchWord * 64ULL + find_far_close( bits[ matchWord ], numFarClose - e );
 

@@ -1,7 +1,7 @@
-/*		 
+/*
  * Sux: Succinct data structures
  *
- * Copyright (C) 2007-2013 Sebastiano Vigna 
+ * Copyright (C) 2007-2013 Sebastiano Vigna
  *
  *  This library is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU Lesser General Public License as published by the Free
@@ -20,7 +20,9 @@
 
 using namespace std;
 
+#ifdef VERBOSE
 #include <cstdio>
+#endif
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -36,7 +38,7 @@ simple_select::simple_select() {}
 simple_select::simple_select( const uint64_t * const bits, const uint64_t num_bits, const int max_log2_longwords_per_subinventory ) {
 	this->bits = bits;
 	num_words = ( num_bits + 63 ) / 64;
-	
+
 	// Init rank/select structure
 	uint64_t c = 0;
 	for( uint64_t i = 0; i < num_words; i++ ) c += __builtin_popcountll( bits[ i ] );
@@ -50,9 +52,9 @@ simple_select::simple_select( const uint64_t * const bits, const uint64_t num_bi
 	ones_per_inventory = 1ULL << log2_ones_per_inventory;
 	ones_per_inventory_mask = ones_per_inventory - 1;
 	inventory_size = ( c + ones_per_inventory - 1 ) / ones_per_inventory;
-
-	printf("Number of ones: %lld Number of ones per inventory item: %d\n", c, ones_per_inventory );	
-
+#ifdef VERBOSE
+	printf("Number of ones: %lld Number of ones per inventory item: %d\n", c, ones_per_inventory );
+#endif
 	log2_longwords_per_subinventory = min( max_log2_longwords_per_subinventory, max( 0, log2_ones_per_inventory - 2 ) );
 	longwords_per_subinventory = 1 << log2_longwords_per_subinventory;
 	longwords_per_inventory = longwords_per_subinventory + 1;
@@ -62,9 +64,9 @@ simple_select::simple_select( const uint64_t * const bits, const uint64_t num_bi
 	ones_per_sub16 = 1ULL << log2_ones_per_sub16;
 	ones_per_sub64_mask = ones_per_sub64 - 1;
 	ones_per_sub16_mask = ones_per_sub16 - 1;
-
+#ifdef VERBOSE
 	printf("Longwords per subinventory: %d Ones per sub 64: %d sub 16: %d\n", longwords_per_subinventory, ones_per_sub64, ones_per_sub16 );
-
+#endif
 	inventory = new int64_t[ inventory_size * longwords_per_inventory + 1 ];
 	const int64_t *end_of_inventory = inventory + inventory_size * longwords_per_inventory + 1;
 
@@ -82,9 +84,9 @@ simple_select::simple_select( const uint64_t * const bits, const uint64_t num_bi
 
 	assert( c == d );
 	inventory[ inventory_size * longwords_per_inventory ] = num_bits;
-
+#ifdef VERBOSE
 	printf("Inventory entries filled: %lld\n", inventory_size + 1 );
-
+#endif
 	if ( ones_per_inventory > 1 ) {
 		d = 0;
 		int ones;
@@ -100,7 +102,7 @@ simple_select::simple_select( const uint64_t * const bits, const uint64_t num_bi
 						start = inventory[ inventory_index * longwords_per_inventory ];
 						span = inventory[ ( inventory_index + 1 ) * longwords_per_inventory ] - start;
 						ones = min( c - d, (uint64_t)ones_per_inventory );
-						
+
 						assert( start + span == num_bits || ones == ones_per_inventory );
 
 						// We accumulate space for exact pointers ONLY if necessary.
@@ -113,9 +115,9 @@ simple_select::simple_select( const uint64_t * const bits, const uint64_t num_bi
 					d++;
 				}
 			}
-
+#ifdef VERBOSE
 		printf("Spilled entries: %lld exact: %lld\n", spilled, exact );
-
+#endif
 		exact_spill_size = spilled;
 		exact_spill = new uint64_t[ exact_spill_size ];
 
@@ -170,11 +172,12 @@ simple_select::simple_select( const uint64_t * const bits, const uint64_t num_bi
 		exact_spill = NULL;
 		exact_spill_size = 0;
 	}
-
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf("First inventories: %lld %lld %lld %lld\n", inventory[ 0 ], inventory[ 1 ], inventory[ 2 ], inventory[ 3 ] );
 	//if ( subinventory_size > 0 ) printf("First subinventories: %016llx %016llx %016llx %016llx\n", subinventory[ 0 ], subinventory[ 1 ], subinventory[ 2 ], subinventory[ 3 ] );
 	if ( exact_spill_size > 0 ) printf("First spilled entries: %016llx %016llx %016llx %016llx\n", exact_spill[ 0 ], exact_spill[ 1 ], exact_spill[ 2 ], exact_spill[ 3 ] );
+#endif
 #endif
 
 #ifndef NDEBUG
@@ -185,7 +188,9 @@ simple_select::simple_select( const uint64_t * const bits, const uint64_t num_bi
 		assert( t < num_bits );
 		r = rank9.rank( t );
 		if ( r != i ) {
+#ifdef VERBOSE
 			printf( "i: %lld s: %lld r: %lld\n", i, t, r );
+#endif
 			assert( r == i );
 		}
 	}
@@ -195,7 +200,9 @@ simple_select::simple_select( const uint64_t * const bits, const uint64_t num_bi
 		if ( r < c ) {
 			t = select( r );
 			if ( t < i ) {
+#ifdef VERBOSE
 				printf( "i: %lld r: %lld s: %lld\n", i, r, t );
+#endif
 				assert( t >= i );
 			}
 		}
@@ -211,8 +218,10 @@ simple_select::~simple_select() {
 }
 
 uint64_t simple_select::select( const uint64_t rank ) {
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Selecting %lld\n...", rank );
+#endif
 #endif
 
 	const uint64_t inventory_index = rank >> log2_ones_per_inventory;
@@ -221,12 +230,11 @@ uint64_t simple_select::select( const uint64_t rank ) {
 
 	const int64_t inventory_rank = *inventory_start;
 	const int subrank = rank & ones_per_inventory_mask;
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Rank: %lld inventory index: %lld inventory rank: %lld subrank: %d\n", rank, inventory_index, inventory_rank, subrank );
-#endif
-
-#ifdef DEBUG
 	if ( subrank == 0 ) puts( "Exact hit (no subrank); returning inventory" );
+#endif
 #endif
 	if ( subrank == 0 ) return inventory_rank & ~(1ULL<<63);
 
@@ -243,9 +251,11 @@ uint64_t simple_select::select( const uint64_t rank ) {
 		return exact_spill[ *(inventory_start + 1) + subrank ];
 	}
 
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Differential; start: %lld residual: %d\n", start, residual );
 	if ( residual == 0 ) puts( "No residual; returning start" );
+#endif
 #endif
 
 	if ( residual == 0 ) return start;
@@ -258,7 +268,7 @@ uint64_t simple_select::select( const uint64_t rank ) {
 		if ( residual < bit_count ) break;
 		word = bits[ ++word_index ];
 		residual -= bit_count;
-	} 
+	}
 
 	return word_index * 64 + select_in_word( word, residual );
 }

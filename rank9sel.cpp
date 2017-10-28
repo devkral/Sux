@@ -1,7 +1,7 @@
-/*		 
+/*
  * Sux: Succinct data structures
  *
- * Copyright (C) 2007-2013 Sebastiano Vigna 
+ * Copyright (C) 2007-2013 Sebastiano Vigna
  *
  *  This library is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU Lesser General Public License as published by the Free
@@ -17,8 +17,9 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
-
+#ifdef VERBOSE
 #include <cstdio>
+#endif
 #include <ctime>
 #include <cassert>
 #include <cstdlib>
@@ -56,13 +57,15 @@ rank9sel::rank9sel( const uint64_t * const bits, const uint64_t num_bits ) {
 	}
 
 	counts[ num_counts ] = c;
-	printf("Number of ones: %lld\n", c );	
-
+#ifdef VERBOSE
+	printf("Number of ones: %llu\n", c );
+#endif
 	assert( c <= num_bits );
 
 	inventory_size = ( c + ONES_PER_INVENTORY - 1 ) / ONES_PER_INVENTORY;
-
-	printf("Number of ones per inventory item: %d\n", ONES_PER_INVENTORY );	
+#ifdef VERBOSE
+	printf("Number of ones per inventory item: %d\n", ONES_PER_INVENTORY );
+#endif
 	assert( ONES_PER_INVENTORY <= 8 * 64 );
 
 	inventory = new uint64_t[ inventory_size + 1 ]();
@@ -74,8 +77,8 @@ rank9sel::rank9sel( const uint64_t * const bits, const uint64_t num_bits ) {
 			if ( bits[ i ] & 1ULL << j ) {
 				if ( ( d & INVENTORY_MASK ) == 0 ) {
 					inventory[ d >> LOG2_ONES_PER_INVENTORY ] = i * 64 + j;
-					assert( counts[ ( i / 8 ) * 2 ] <= d ); 
-					assert( counts[ ( i / 8 ) * 2 + 2 ] > d ); 
+					assert( counts[ ( i / 8 ) * 2 ] <= d );
+					assert( counts[ ( i / 8 ) * 2 + 2 ] > d );
 				}
 
 				d++;
@@ -83,17 +86,18 @@ rank9sel::rank9sel( const uint64_t * const bits, const uint64_t num_bits ) {
 
 	assert( c == d );
 	inventory[ inventory_size ] = ( ( num_words + 3 ) & ~3ULL ) * 64;
-
+#ifdef VERBOSE
 	printf("Inventory entries filled: %lld\n", d / ONES_PER_INVENTORY + 1 );
-
+#endif
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf("First inventories: %lld %lld %lld %lld\n", inventory[ 0 ], inventory[ 1 ], inventory[ 2 ], inventory[ 3 ] );
 #endif
-
+#endif
 	d = 0;
 	int state;
 	uint64_t *s, first_bit, index, span, block_span, block_left, counts_at_start;
-	
+
 	for( uint64_t i = 0; i < num_words; i++ )
 		for( int j = 0; j < 64; j++ )
 			if ( bits[ i ] & 1ULL << j ) {
@@ -154,16 +158,16 @@ rank9sel::rank9sel( const uint64_t * const bits, const uint64_t num_bits ) {
 				}
 
 				switch( state ) {
-					case 0: 
+					case 0:
 						assert( s[ d & INVENTORY_MASK ] == 0 );
 						s[ d & INVENTORY_MASK ] = i * 64 + j;
 						break;
-					case 1: 
+					case 1:
 						assert( ((uint32_t *)s)[ d & INVENTORY_MASK ] == 0 );
 						assert( i * 64 + j - first_bit < (1ULL << 32) );
 						((uint32_t *)s)[ d & INVENTORY_MASK ] = i * 64 + j - first_bit;
 						break;
-					case 2: 
+					case 2:
 						assert( ((uint16_t *)s)[ d & INVENTORY_MASK ] == 0 );
 						assert( i * 64 + j - first_bit < (1 << 16) );
 						((uint16_t *)s)[ d & INVENTORY_MASK ] = i * 64 + j - first_bit;
@@ -180,7 +184,9 @@ rank9sel::rank9sel( const uint64_t * const bits, const uint64_t num_bits ) {
 		t = select( i );
 		r = rank( t );
 		if ( r != i ) {
+#ifdef VERBOSE
 			printf( "i: %lld s: %lld r: %lld\n", i, t, r );
+#endif
 			assert( r == i );
 		}
 	}
@@ -190,7 +196,9 @@ rank9sel::rank9sel( const uint64_t * const bits, const uint64_t num_bits ) {
 		if ( r < c ) {
 			t = select( r );
 			if ( t < i ) {
+#ifdef VERBOSE
 				printf( "i: %lld r: %lld s: %lld\n", i, r, t );
+#endif
 				assert( t >= i );
 			}
 		}
@@ -222,9 +230,10 @@ uint64_t rank9sel::select( const uint64_t rank ) {
 	const uint64_t span = block_right / 4 - block_left / 4;
 	const uint64_t * const s = &subinventory[ block_left / 4 ];
 	uint64_t count_left, rank_in_block;
-
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Initially, rank: %lld block_left: %lld block_right: %lld span: %lld\n", rank, block_left, block_right, span );
+#endif
 #endif
 
 	if ( span < 2 ) {
@@ -232,8 +241,10 @@ uint64_t rank9sel::select( const uint64_t rank ) {
 		count_left = block_left / 4 & ~1;
 		assert( rank < counts[ count_left + 2 ] );
 		rank_in_block = rank - counts[ count_left ];
+#ifdef VERBOSE
 #ifdef DEBUG
 		printf( "Single span; rank_in_block: %lld block_left: %lld\n", rank_in_block, block_left );
+#endif
 #endif
 #ifdef COUNTS
 		single++;
@@ -249,8 +260,10 @@ uint64_t rank9sel::select( const uint64_t rank ) {
 		const int where = ( ULEQ_STEP_16( first, rank_in_superblock_step_16 ) + ULEQ_STEP_16( second, rank_in_superblock_step_16 ) ) * ONES_STEP_16 >> 47;
 		assert( where >= 0 );
 		assert( where <= 16 );
+#ifdef VERBOSE
 #ifdef DEBUG
 		printf( "rank_in_superblock: %lld (%llx) %llx %llx\n", rank_in_superblock, rank_in_superblock, s[0], s[1] );
+#endif
 #endif
 
 		block_left += where * 4;
@@ -258,9 +271,12 @@ uint64_t rank9sel::select( const uint64_t rank ) {
 		rank_in_block = rank - counts[ count_left ];
 		assert( rank_in_block >= 0 );
 		assert( rank_in_block < 512 );
+
+#ifdef VERBOSE
 #ifdef DEBUG
 		printf( "Found where (1): %d rank_in_block: %lld block_left: %lld\n", where, rank_in_block, block_left );
 		printf( "supercounts: %016llx %016llx\n", s[0], s[1] );
+#endif
 #endif
 #ifdef COUNTS
 		one_level++;
@@ -284,8 +300,10 @@ uint64_t rank9sel::select( const uint64_t rank ) {
 		assert( rank_in_block >= 0 );
 		assert( rank_in_block < 512 );
 
+#ifdef VERBOSE
 #ifdef DEBUG
 		printf( "Found where (2): %d rank_in_block: %lld block_left: %lld\n", where1, rank_in_block, block_left );
+#endif
 #endif
 #ifdef COUNTS
 		two_levels++;
@@ -316,12 +334,16 @@ uint64_t rank9sel::select( const uint64_t rank ) {
 
 	const uint64_t word = block_left + offset_in_block;
 	const uint64_t rank_in_word = rank_in_block - ( subcounts >> ( offset_in_block - 1 & 7 ) * 9 & 0x1FF );
+
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "rank_in_block: %lld offset_in_block: %lld rank_in_word: %lld compare: %016llx shift: %lld\n", rank_in_block, offset_in_block, rank_in_word, UCOMPARE_STEP_9( rank_in_block_step_9, subcounts ), subcounts >> ( offset_in_block - 1 ) * 9 & 0x1FF );
+#endif
 #endif
 	assert( offset_in_block >= 0 );
 	assert( offset_in_block <= 7 );
 
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "rank_in_block: %lld offset_in_block: %lld rank_in_word: %lld\n", rank_in_block, offset_in_block, rank_in_word );
 	printf( "subcounts: " );
@@ -329,12 +351,15 @@ uint64_t rank9sel::select( const uint64_t rank ) {
 	printf( "\n" );
 	fflush( stdout );
 #endif
+#endif
 
 	assert( rank_in_word < 64 );
 	assert( rank_in_word >= 0 );
 
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Returning %lld\n", word * 64ULL + select_in_word( bits[ word ], rank_in_word ) );
+#endif
 #endif
 	return word * 64ULL + select_in_word( bits[ word ], rank_in_word );
 }
@@ -344,7 +369,9 @@ uint64_t rank9sel::bit_count() {
 }
 
 void rank9sel::print_counts() {
+#ifdef VERBOSE
 #ifdef COUNTS
 	printf( "single:\t%lld\none level:\t%lld\ntwo levels:\t%lld\nshorts:\t%lld\nlongs:\t%lld\nlonglongs:\t%lld\n", single, one_level, two_levels, shorts, longs, longlongs );
+#endif
 #endif
 }

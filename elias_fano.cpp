@@ -1,7 +1,7 @@
-/*		 
+/*
  * Sux: Succinct data structures
  *
- * Copyright (C) 2007-2013 Sebastiano Vigna 
+ * Copyright (C) 2007-2013 Sebastiano Vigna
  *
  *  This library is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU Lesser General Public License as published by the Free
@@ -17,8 +17,9 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
-
+#ifdef VERBOSE
 #include <cstdio>
+#endif
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -33,11 +34,11 @@ elias_fano::elias_fano( const uint64_t * const bits, const uint64_t num_bits ) {
 	num_ones = m;
 	this->num_bits = num_bits;
 	l = num_ones == 0 ? 0 : max( 0, msb( num_bits / num_ones ) );
-
+#ifdef VERBOSE
 	printf( "Number of ones: %lld l: %d\n", num_ones, l );
 	printf( "Upper bits: %lld\n", num_ones + ( num_bits >> l ) + 1 );
 	printf( "Lower bits: %lld\n", num_ones * l );
-
+#endif
 	const uint64_t lower_bits_mask = ( 1ULL << l ) - 1;
 
 	lower_bits = new uint64_t[ ( num_ones * l + 63  ) / 64 + 2 * ( l == 0 ) ];
@@ -53,9 +54,11 @@ elias_fano::elias_fano( const uint64_t * const bits, const uint64_t num_bits ) {
 	}
 
 
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf("First lower: %016llx %016llx %016llx %016llx\n", lower_bits[ 0 ], lower_bits[ 1 ], lower_bits[ 2 ], lower_bits[ 3 ] );
 	printf("First upper: %016llx %016llx %016llx %016llx\n", upper_bits[ 0 ], upper_bits[ 1 ], upper_bits[ 2 ], upper_bits[ 3 ] );
+#endif
 #endif
 
 	select_upper = new simple_select_half( upper_bits, num_ones + ( num_bits >> l ) );
@@ -64,8 +67,10 @@ elias_fano::elias_fano( const uint64_t * const bits, const uint64_t num_bits ) {
 	block_size = 0;
 	while( ++block_size * l + block_size <= 64 && block_size <= l );
 	block_size--;
-
+#ifdef VERBOSE
 	printf( "Block size: %d\n", block_size );
+#endif
+
 	block_size_mask = ( 1ULL << block_size ) - 1;
 	block_length = block_size * l;
 	block_length_mask = block_length - 1;
@@ -76,10 +81,10 @@ elias_fano::elias_fano( const uint64_t * const bits, const uint64_t num_bits ) {
 
 	compressor = 0;
 	for( int i = 0; i < block_size; i++) compressor |= 1ULL << ( l - 1 ) * i + block_size;
-	
+
 	lower_l_bits_mask = ( 1ULL << l ) - 1;
 
-#ifndef NDEBUG
+#ifdef VERBOSE
 	uint64_t r, t;
 	for( uint64_t i = 0; i < num_ones; i++ ) {
 		t = select( i );
@@ -113,8 +118,10 @@ elias_fano::~elias_fano() {
 uint64_t elias_fano::rank( const uint64_t k ) {
 	if ( num_ones == 0 ) return 0;
 	if ( k >= num_bits ) return num_ones;
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Ranking %lld...\n", k );
+#endif
 #endif
 	const uint64_t k_shiftr_l = k >> l;
 
@@ -122,39 +129,42 @@ uint64_t elias_fano::rank( const uint64_t k ) {
 	int64_t pos = selectz_upper->select_zero( k_shiftr_l );
 	uint64_t rank = pos - ( k_shiftr_l );
 
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Position: %lld rank: %lld\n", pos, rank );
+#endif
 #endif
 	uint64_t rank_times_l = rank * l;
 	const uint64_t k_lower_bits = k & lower_l_bits_mask;
 
 	do {
-		rank--; 
+		rank--;
 		rank_times_l -= l;
-		pos--; 
+		pos--;
 	} while( pos >= 0 && ( upper_bits[ pos / 64 ] & 1ULL << pos % 64 ) && get_bits( lower_bits, rank_times_l, l ) >= k_lower_bits );
 
 	return ++rank;
 #else
 
 	const uint64_t k_lower_bits = k & lower_l_bits_mask;
-
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "k: %llx lower %d : %llx\n", k, l, k_lower_bits );
 #endif
-
+#endif
 	const uint64_t k_lower_bits_step_l = k_lower_bits * ones_step_l;
 
 	uint64_t pos = selectz_upper->select_zero( k_shiftr_l );
 	uint64_t rank = pos - ( k_shiftr_l );
 	uint64_t rank_times_l = rank * l;
-
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "pos: %lld rank: %lld\n", pos, rank );
 #endif
+#endif
 
 	uint64_t block_upper_bits, block_lower_bits;
-	
+
 	while ( rank > block_size ) {
 		rank -= block_size;
 		rank_times_l -= block_length;
@@ -197,11 +207,11 @@ uint64_t elias_fano::rank( const uint64_t k ) {
 }
 
 uint64_t elias_fano::select( const uint64_t rank ) {
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Selecting %lld...\n", rank );
-#endif
-#ifdef DEBUG
 	printf( "Returning %lld = %llx << %d | %llx\n", ( select_upper->select( rank ) - rank ) << l | get_bits( lower_bits, rank * l, l ), select_upper->select( rank ) - rank , l, get_bits( lower_bits, rank * l, l ) );
+#endif
 #endif
 	return ( select_upper->select( rank ) - rank ) << l | get_bits( lower_bits, rank * l, l );
 }

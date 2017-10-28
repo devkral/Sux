@@ -1,7 +1,7 @@
-/*		 
+/*
  * Sux: Succinct data structures
  *
- * Copyright (C) 2007-2013 Sebastiano Vigna 
+ * Copyright (C) 2007-2013 Sebastiano Vigna
  *
  *  This library is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU Lesser General Public License as published by the Free
@@ -20,7 +20,9 @@
 
 #include <cassert>
 #include <cstring>
+#ifdef VERBOSE
 #include <cstdio>
+#endif
 #include <cmath>
 #include "jacobson.h"
 
@@ -31,7 +33,7 @@ jacobson::jacobson( const uint64_t * const bits, const uint64_t num_bits ) {
 	num_words = ( num_bits + 63 ) / 64;
 	num_counts = ( ( num_bits + 64 * 8 - 1 ) / ( 64 * 8 ) ) * 2;
 	block_size = (uint64_t)floor( log( num_bits ) / ( 2 * log( 2 ) ) );
-	superblock_size = msb( num_bits ) * block_size;	
+	superblock_size = msb( num_bits ) * block_size;
 
 	counter_bits_per_superblock = ceil_log2( num_bits );
 	num_bits_for_superblocks = ( ( num_bits + superblock_size - 1 ) / superblock_size ) * counter_bits_per_superblock;
@@ -39,10 +41,10 @@ jacobson::jacobson( const uint64_t * const bits, const uint64_t num_bits ) {
 	num_bits_for_blocks = ( ( num_bits + block_size - 1 ) / block_size ) * counter_bits_per_block;
 	counter_bits_per_precomp = ceil_log2( block_size );
 	num_bits_for_precomp = ( 1ULL << block_size ) * block_size * counter_bits_per_precomp;
-
+#ifdef VERBOSE
 	printf( "Block size: %lld Superblock size: %lld Bits per block counter: %lld Bits per superblock counter: %lld Bits per table entry: %lld\n",
 		block_size, superblock_size, counter_bits_per_block, counter_bits_per_superblock, counter_bits_per_precomp );
-
+#endif
 	// Init rank structure
 	counts = new uint64_t[ ( num_bits_for_blocks + 63 ) / 64 ];
 	supercounts = new uint64_t[ ( num_bits_for_superblocks + 63 ) / 64 ];

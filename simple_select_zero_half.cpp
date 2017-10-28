@@ -1,7 +1,7 @@
-/*		 
+/*
  * Sux: Succinct data structures
  *
- * Copyright (C) 2007-2013 Sebastiano Vigna 
+ * Copyright (C) 2007-2013 Sebastiano Vigna
  *
  *  This library is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU Lesser General Public License as published by the Free
@@ -20,7 +20,9 @@
 
 using namespace std;
 
+#ifdef VERBOSE
 #include <cstdio>
+#endif
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -46,7 +48,7 @@ simple_select_zero_half::simple_select_zero_half() {}
 simple_select_zero_half::simple_select_zero_half( const uint64_t * const bits, const uint64_t num_bits ) {
 	this->bits = bits;
 	num_words = ( num_bits + 63 ) / 64;
-	
+
 	// Init rank/select structure
 	uint64_t c = 0;
 	for( uint64_t i = 0; i < num_words; i++ ) c += __builtin_popcountll( ~bits[ i ] );
@@ -55,11 +57,14 @@ simple_select_zero_half::simple_select_zero_half( const uint64_t * const bits, c
 if ( num_bits % 64 != 0 ) c -= 64 - num_bits % 64;
 	assert( c <= num_bits );
 
-	printf("Number of bits: %lld Number of ones: %lld (%.2f%%)\n", num_bits, c, ( c * 100.0 ) / num_bits );	
-
+#ifdef VERBOSE
+	printf("Number of bits: %lld Number of ones: %lld (%.2f%%)\n", num_bits, c, ( c * 100.0 ) / num_bits );
+#endif
 	inventory_size = ( c + ONES_PER_INVENTORY - 1 ) / ONES_PER_INVENTORY;
 
-	printf("Ones per inventory: %d Ones per sub 64: %d sub 16: %d\n", ONES_PER_INVENTORY, ONES_PER_SUB64, ONES_PER_SUB16 );	
+#ifdef VERBOSE
+	printf("Ones per inventory: %d Ones per sub 64: %d sub 16: %d\n", ONES_PER_INVENTORY, ONES_PER_SUB64, ONES_PER_SUB16 );
+#endif
 
 	inventory = new int64_t[ inventory_size * (LONGWORDS_PER_SUBINVENTORY + 1) + 1 ];
 	const int64_t *end_of_inventory = inventory + inventory_size * (LONGWORDS_PER_SUBINVENTORY + 1) + 1;
@@ -80,8 +85,9 @@ if ( num_bits % 64 != 0 ) c -= 64 - num_bits % 64;
 	assert( c == d );
 	inventory[ inventory_size * (LONGWORDS_PER_SUBINVENTORY + 1) ] = num_bits;
 
+#ifdef VERBOSE
 	printf("Inventory entries filled: %lld\n", inventory_size + 1 );
-
+#endif
 
 	uint16_t *p16;
 	int64_t *p64;
@@ -123,10 +129,12 @@ if ( num_bits % 64 != 0 ) c -= 64 - num_bits % 64;
 			}
 		}
 
+#ifdef VERBOSE
 	printf("Exact entries: %lld\n", exact );
 
 #ifdef DEBUG
 	printf("First inventories: %lld %lld %lld %lld\n", inventory[ 0 ], inventory[ 1 ], inventory[ 2 ], inventory[ 3 ] );
+#endif
 #endif
 
 #ifndef NDEBUG
@@ -137,7 +145,9 @@ if ( num_bits % 64 != 0 ) c -= 64 - num_bits % 64;
 		t = select_zero( i );
 		r = t - rank9.rank( t );
 		if ( r != i ) {
+#ifdef VERBOSE
 			printf( "i: %lld s: %lld r: %lld\n", i, t, r );
+#endif
 			assert( r == i );
 		}
 	}
@@ -147,7 +157,9 @@ if ( num_bits % 64 != 0 ) c -= 64 - num_bits % 64;
 		if ( r < c ) {
 			t = select_zero( r );
 			if ( t < i ) {
+#ifdef VERBOSE
 				printf( "i: %lld r: %lld s: %lld\n", i, r, t );
+#endif
 				assert( t >= i );
 			}
 		}
@@ -162,19 +174,23 @@ simple_select_zero_half::~simple_select_zero_half() {
 }
 
 uint64_t simple_select_zero_half::select_zero( const uint64_t rank ) {
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Selecting %lld\n...", rank );
+#endif
 #endif
 	assert( rank < num_ones );
 
 	const uint64_t inventory_index = rank >> LOG2_ONES_PER_INVENTORY;
 	assert( inventory_index < inventory_size );
 	const int64_t *inventory_start = inventory + ( inventory_index << LOG2_LONGWORDS_PER_SUBINVENTORY ) + inventory_index;
-	
+
 	const int64_t inventory_rank = *inventory_start;
 	const int subrank = rank & ONES_PER_INVENTORY_MASK;
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Rank: %lld inventory index: %lld inventory rank: %lld subrank: %d\n", rank, inventory_index, inventory_rank, subrank );
+#endif
 #endif
 
 
@@ -191,9 +207,11 @@ uint64_t simple_select_zero_half::select_zero( const uint64_t rank ) {
 		residual = subrank & ONES_PER_SUB64_MASK;
 	}
 
+#ifdef VERBOSE
 #ifdef DEBUG
 	printf( "Differential; start: %lld residual: %d\n", start, residual );
 	if ( residual == 0 ) puts( "No residual; returning start" );
+#endif
 #endif
 
 	if ( residual == 0 ) return start;
@@ -206,7 +224,7 @@ uint64_t simple_select_zero_half::select_zero( const uint64_t rank ) {
 		if ( residual < bit_count ) break;
 		word = ~bits[ ++word_index ];
 		residual -= bit_count;
-	} 
+	}
 
 	return word_index * 64 + select_in_word( word, residual );
 }
@@ -217,7 +235,7 @@ uint64_t simple_select_zero_half::select_zero( const uint64_t rank, uint64_t * c
 
 	uint64_t window = ~bits[ curr ] & -1ULL << s;
 	window &= window - 1;
-		
+
 	while( window == 0 ) window = ~bits[ ++curr ];
 	*next = curr * 64 + __builtin_ctzll( window );
 
